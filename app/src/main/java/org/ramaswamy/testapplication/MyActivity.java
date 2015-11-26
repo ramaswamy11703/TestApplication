@@ -8,8 +8,10 @@ import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
 
 public class MyActivity extends AppCompatActivity {
+    protected int callValue = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,10 +24,18 @@ public class MyActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                pressListener(view);
             }
         });
+
+    }
+
+    protected void pressListener(View view) {
+        String outputStr = "call value is " + callValue++;
+        Snackbar.make(view, outputStr, Snackbar.LENGTH_LONG)
+                .setAction("Action", null).show();
+        // TextView tv = (TextView) findViewById(R.id.textWidget);
+        // tv.setText(outputStr);
     }
 
     @Override
