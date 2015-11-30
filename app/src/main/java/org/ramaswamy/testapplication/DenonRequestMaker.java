@@ -57,7 +57,6 @@ public class DenonRequestMaker {
         queue = Volley.newRequestQueue(myActivity);
     }
     void updateStatus(final MyActivity myActivity) {
-
         TextView tv = (TextView) myActivity.findViewById(R.id.textview);
         tv.setText("");
         for (ZoneEnums zenum : ZoneEnums.values()) {
@@ -72,6 +71,7 @@ public class DenonRequestMaker {
                             final TextView tv = (TextView) myActivity.findViewById(R.id.textview);
                             try {
                                 myActivity.ampState.parseFromXml(response, z);
+                                myActivity.updateFromState(z);
                                 // Display the first 500 characters of the response string.
                                 tv.append("Read state for zone " + z.getName() + "\n");
                             } catch (Exception e) {
@@ -121,9 +121,15 @@ public class DenonRequestMaker {
     }
 
     void updateSource(ZoneEnums zenum, SourceEnums senum) {
+        if ((senum == SourceEnums.Unknown) && (myActivity.ampState.initDone())) {
+            final TextView tv = (TextView) myActivity.findViewById(R.id.textview);
+            tv.setText("Please set input to valid source");
+            updateStatus(myActivity);
+            return;
+        }
         String url = updateUrl + "&cmd0=PutZone_InputFunction/" + senum.getSource() + "&ZoneName=" +
                 zenum.getName();
-        issueVolleyRequest(url, "Updated source successfully to " + zenum.getName(),
-                "Failure updating input source");
+        issueVolleyRequest(url, "Updated source successfully to " + senum.getDisplaySource() + " for zone "
+                        + zenum.getName(), "Failure updating input source");
     }
 }

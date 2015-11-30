@@ -31,6 +31,7 @@ public class DenonAmpState {
         int volume;
         SourceEnums source;
         boolean onOff;
+
         ZoneState(ZoneEnums z) {
             zone = z;
         }
@@ -49,8 +50,20 @@ public class DenonAmpState {
     DenonAmpState() {
         zoneStates = new ZoneState[ZoneEnums.values().length];
         for (ZoneEnums zoneEnum : ZoneEnums.values()) {
-            zoneStates[zoneEnum.ordinal()] = new ZoneState(zoneEnum);
+            zoneStates[zoneEnum.ordinal()] = null;
         }
+    }
+
+    boolean initDone() {
+        boolean alldone = true;
+        for (ZoneEnums zenum : ZoneEnums.values()) {
+            alldone = alldone && (zoneStates[zenum.ordinal()] != null);
+        }
+        return alldone;
+    }
+
+    ZoneState getZoneState(ZoneEnums zenum) {
+        return zoneStates[zenum.ordinal()];
     }
 
     void updateInput(ZoneEnums zone, SourceEnums source) {

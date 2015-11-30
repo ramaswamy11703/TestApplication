@@ -9,8 +9,11 @@ import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.RadioButton;
 import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.android.volley.Request;
@@ -20,6 +23,8 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
+import javax.xml.transform.Source;
+
 /*
 
 
@@ -28,6 +33,8 @@ public class MyActivity extends AppCompatActivity {
     protected int callValue = 0;
     protected DenonRequestMaker drm = new DenonRequestMaker(this);
     protected DenonAmpState ampState = new DenonAmpState();
+    // set to true when internally taking care of things so that we don't trigger event handlers
+    boolean updatingState = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,54 +44,110 @@ public class MyActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                pressListener(view);
-            }
-        });
+        int[] rids = {R.id.sliderMain, R.id.sliderZone2, R.id.sliderZone3};
+        for (int id : rids) {
+            SeekBar seekBar = (SeekBar) findViewById(id);
+            seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    if (updatingState) return;
+                    drm.updateVolume(getZoneFromSlider(seekBar), progress);
+                }
 
-        SeekBar seekBar = (SeekBar)findViewById(R.id.sliderMain);
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                drm.updateVolume(ZoneEnums.MAINZONE, progress);
-            }
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+                }
 
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
-        });
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+                }
+            });
+        }
+
+
+        int[] rids2 = {R.id.spinnerMain, R.id.spinnerZone2, R.id.spinnerZone3};
+        for (int id : rids2) {
+            Spinner spinner = (Spinner) findViewById(id);
+            ArrayAdapter<CharSequence> adapter = new ArrayAdapter(this,
+                    R.layout.support_simple_spinner_dropdown_item);
+            adapter.addAll(SourceEnums.displayStrings);
+            spinner.setAdapter(adapter);
+            spinner.setSelection(SourceEnums.Unknown.ordinal());
+            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (updatingState) return;
+                    drm.updateSource(getZoneFromSpinner(parent), SourceEnums.getSource(position));
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                    drm.updateSource(getZoneFromSpinner(parent), SourceEnums.Unknown);
+                }
+            });
+        }
 
         drm.init();
-        // wire widgets to event handlers
         drm.updateStatus(this);
 
         DenonAmpState.testMethod();
     }
 
-    protected void sliderListener(View view, int zone) {}
-    protected void radioListener(View view, int source) {}
-    protected void paintScreen() {}
-
-    public void onRadioButtonClicked(View view) {
-        boolean checked = ((RadioButton)view).isChecked();
-        ZoneEnums zenum = ZoneEnums.MAINZONE;
-        SourceEnums senum = SourceEnums.Comcast;
-        switch (view.getId()) {
-            case R.id.mainCable:
-                break;
-            case R.id.mainCC:
-                senum = SourceEnums.Chromecast;
-                break;
-            case R.id.mainSonos:
-                senum = SourceEnums.Sonos;
-                break;
-        }
-        drm.updateSource(zenum, senum);
+    void updateFromState(ZoneEnums z) {
+        DenonAmpState.ZoneState zs = this.ampState.getZoneState(z);
+        Spinner spinner = (Spinner) findViewById(getSpinnerIdFromZone(z));
+        updatingState = true;
+        spinner.setSelection(zs.source.ordinal());
+        SeekBar seekbar = (SeekBar) findViewById(getSliderIdFromZone(z));
+        seekbar.setProgress(zs.volume);
+        updatingState = false;
     }
+
+    int getSpinnerIdFromZone(ZoneEnums z) {
+        switch (z) {
+            case MAINZONE: return R.id.spinnerMain;
+            case ZONE2: return R.id.spinnerZone2;
+            case ZONE3: return R.id.spinnerZone3;
+        }
+        return R.id.spinnerMain;
+    }
+
+    int getSliderIdFromZone(ZoneEnums z) {
+        switch (z) {
+            case MAINZONE: return R.id.sliderMain;
+            case ZONE2: return R.id.sliderZone2;
+            case ZONE3: return R.id.sliderZone3;
+        }
+        return R.id.sliderMain;
+    }
+
+    ZoneEnums getZoneFromSpinner(View parent) {
+        switch (parent.getId()) {
+            case R.id.spinnerMain:
+                return ZoneEnums.MAINZONE;
+            case R.id.spinnerZone2:
+                return ZoneEnums.ZONE2;
+            case R.id.spinnerZone3:
+                return ZoneEnums.ZONE3;
+        }
+        return ZoneEnums.MAINZONE;
+    }
+
+    ZoneEnums getZoneFromSlider(View parent) {
+        switch (parent.getId()) {
+            case R.id.sliderMain:
+                return ZoneEnums.MAINZONE;
+            case R.id.sliderZone2:
+                return ZoneEnums.ZONE2;
+            case R.id.sliderZone3:
+                return ZoneEnums.ZONE3;
+        }
+        return ZoneEnums.MAINZONE;
+    }
+
+
+    // update state from read state
+    protected void paintScreen() {}
 
     protected void pressListener(View view) {
         String outputStr = "call value is " + callValue++;
