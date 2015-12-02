@@ -32,7 +32,7 @@ import javax.xml.transform.Source;
 public class MyActivity extends AppCompatActivity {
     protected int callValue = 0;
     protected DenonRequestMaker drm = new DenonRequestMaker(this);
-    protected DenonAmpState ampState = new DenonAmpState();
+    protected DenonAmpState ampState;
     // set to true when internally taking care of things so that we don't trigger event handlers
     boolean updatingState = false;
 
@@ -40,28 +40,19 @@ public class MyActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        ampState = new DenonAmpState();
         setContentView(R.layout.activity_my);
+
+        drm.init();
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         int[] rids = {R.id.sliderMain, R.id.sliderZone2, R.id.sliderZone3};
         for (int id : rids) {
             SeekBar seekBar = (SeekBar) findViewById(id);
-            seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                @Override
-                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    if (updatingState) return;
-                    drm.updateVolume(getZoneFromSlider(seekBar), progress);
-                }
-
-                @Override
-                public void onStartTrackingTouch(SeekBar seekBar) {
-                }
-
-                @Override
-                public void onStopTrackingTouch(SeekBar seekBar) {
-                }
-            });
+            seekBar.setTag(0);
+            setupSliderEventHandler(seekBar);
         }
 
 
@@ -72,35 +63,69 @@ public class MyActivity extends AppCompatActivity {
                     R.layout.support_simple_spinner_dropdown_item);
             adapter.addAll(SourceEnums.displayStrings);
             spinner.setAdapter(adapter);
+            setupSpinnerEventHandler(spinner);
+            spinner.setTag(SourceEnums.Unknown.ordinal());
             spinner.setSelection(SourceEnums.Unknown.ordinal());
-            spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    if (updatingState) return;
-                    drm.updateSource(getZoneFromSpinner(parent), SourceEnums.getSource(position));
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                    drm.updateSource(getZoneFromSpinner(parent), SourceEnums.Unknown);
-                }
-            });
         }
 
-        drm.init();
-        drm.updateStatus(this);
+        drm.updateAllZones();
 
         DenonAmpState.testMethod();
+    }
+
+    void setupSliderEventHandler(SeekBar seekBar) {
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (seekBar.getTag().equals(progress)) {
+                    return;
+                }
+                seekBar.setTag(progress);
+                drm.updateVolume(getZoneFromSlider(seekBar), progress);
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+
+    }
+
+    void setupSpinnerEventHandler(Spinner spinner) {
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                SourceEnums senum = SourceEnums.getSource(position);
+                if (parent.getTag().equals(senum.ordinal())) return;
+                parent.setTag(senum.ordinal());
+                drm.updateSource(getZoneFromSpinner(parent), SourceEnums.getSource(position));
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                drm.updateSource(getZoneFromSpinner(parent), SourceEnums.Unknown);
+            }
+        });
+    }
+
+
+    void resetTextView() {
+        TextView tv = (TextView) findViewById(R.id.textview);
+        tv.setText("");
     }
 
     void updateFromState(ZoneEnums z) {
         DenonAmpState.ZoneState zs = this.ampState.getZoneState(z);
         Spinner spinner = (Spinner) findViewById(getSpinnerIdFromZone(z));
-        updatingState = true;
+        spinner.setTag(zs.source.ordinal());
         spinner.setSelection(zs.source.ordinal());
+
         SeekBar seekbar = (SeekBar) findViewById(getSliderIdFromZone(z));
+        seekbar.setTag(zs.volume);
         seekbar.setProgress(zs.volume);
-        updatingState = false;
+
     }
 
     int getSpinnerIdFromZone(ZoneEnums z) {
@@ -145,9 +170,6 @@ public class MyActivity extends AppCompatActivity {
         return ZoneEnums.MAINZONE;
     }
 
-
-    // update state from read state
-    protected void paintScreen() {}
 
     protected void pressListener(View view) {
         String outputStr = "call value is " + callValue++;

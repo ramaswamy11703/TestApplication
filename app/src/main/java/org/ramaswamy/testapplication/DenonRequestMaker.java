@@ -56,40 +56,45 @@ public class DenonRequestMaker {
     void init() {
         queue = Volley.newRequestQueue(myActivity);
     }
-    void updateStatus(final MyActivity myActivity) {
-        TextView tv = (TextView) myActivity.findViewById(R.id.textview);
-        tv.setText("");
+
+    void updateAllZones() {
+        // myActivity.resetTextView();
         for (ZoneEnums zenum : ZoneEnums.values()) {
-            String url = ipAddress + "goform/formMainZone_MainZoneXml.xml?ZoneName=" +
-                    zenum.getName();
-            final ZoneEnums z = zenum;
-            // Request a string response from the provided URL.
-            StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
-                    new Response.Listener<String>() {
-                        @Override
-                        public void onResponse(String response) {
-                            final TextView tv = (TextView) myActivity.findViewById(R.id.textview);
-                            try {
-                                myActivity.ampState.parseFromXml(response, z);
-                                myActivity.updateFromState(z);
-                                // Display the first 500 characters of the response string.
-                                tv.append("Read state for zone " + z.getName() + "\n");
-                            } catch (Exception e) {
-                                tv.append("Could not read state for zone " + z.getName() + "\n");
-                                tv.append("stack trace: " + e.toString() + "\n");
-                            }
-                        }
-                    }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    final TextView tv = (TextView) myActivity.findViewById(R.id.textview);
-                    tv.append("Could not read state for zone " + z.getName() + "\n");
-                }
-            });
-            // Add the request to the RequestQueue.
-            queue.add(stringRequest);
+            updateStateForZone(zenum);
         }
     }
+
+    void updateStateForZone(ZoneEnums zenum) {
+        String url = ipAddress + "goform/formMainZone_MainZoneXml.xml?ZoneName=" +
+                zenum.getName();
+        final ZoneEnums z = zenum;
+        // Request a string response from the provided URL.
+        StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        final TextView tv = (TextView) myActivity.findViewById(R.id.textview);
+                        try {
+                            myActivity.ampState.parseFromXml(response, z);
+                            myActivity.updateFromState(z);
+
+                            tv.append("Read state for zone " + z.getName() + "\n");
+                        } catch (Exception e) {
+                            tv.append("Could not read state for zone " + z.getName() + "\n");
+                            tv.append("stack trace: " + e.toString() + "\n");
+                        }
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                final TextView tv = (TextView) myActivity.findViewById(R.id.textview);
+                tv.append("Could not read state for zone " + z.getName() + "\n");
+            }
+        });
+        // Add the request to the RequestQueue.
+        queue.add(stringRequest);
+    }
+
 
     void issueVolleyRequest(String url, final String successMessage, final String failureMessage) {
         StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
@@ -97,14 +102,14 @@ public class DenonRequestMaker {
                     @Override
                     public void onResponse(String response) {
                         final TextView tv = (TextView)myActivity.findViewById(R.id.textview);
-                        tv.setText(successMessage);
+                        tv.append(successMessage);
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         final TextView tv = (TextView) myActivity.findViewById(R.id.textview);
-                        tv.setText(failureMessage);
+                        tv.append(failureMessage);
                     }
                 });
         queue.add(stringRequest);
@@ -116,20 +121,23 @@ public class DenonRequestMaker {
 
         String url = updateUrl + "&cmd0=PutMasterVolumeSet/" + value + "&ZoneName=" +
                 zenum.getName();
-        issueVolleyRequest(url, "Updated volume to " + value + " successfully for zone" + zenum.getName(),
-                "Failed to update volume for zone" + zenum.getName());
+        String msg = value + " for zone " + zenum.getName() + "\n";
+        issueVolleyRequest(url, "Updated volume to " + msg,
+                "Failed updating volume to " + msg);
     }
 
     void updateSource(ZoneEnums zenum, SourceEnums senum) {
         if ((senum == SourceEnums.Unknown) && (myActivity.ampState.initDone())) {
             final TextView tv = (TextView) myActivity.findViewById(R.id.textview);
-            tv.setText("Please set input to valid source");
-            updateStatus(myActivity);
+            tv.append("Please set input to valid source");
+            updateStateForZone(zenum);
             return;
         }
+
         String url = updateUrl + "&cmd0=PutZone_InputFunction/" + senum.getSource() + "&ZoneName=" +
                 zenum.getName();
-        issueVolleyRequest(url, "Updated source successfully to " + senum.getDisplaySource() + " for zone "
-                        + zenum.getName(), "Failure updating input source");
+        String msg = senum.getDisplaySource() + " for zone " + zenum.getName() + "\n";
+        issueVolleyRequest(url, "Updated source to " +  msg,
+                "Failure updating source to " + msg);
     }
 }
